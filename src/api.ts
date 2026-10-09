@@ -35,10 +35,10 @@ export const api = {
         const token = localStorage.getItem('token');
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch('http://localhost:8000/api/doctor/upload', {
+        const response = await fetch("http://localhost:8000/api/doctor/upload", {
             method: 'POST',
             headers: {
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                ...(token ? { 'Authorization': 'Bearer ' + token } : {})
             },
             body: formData
         });
