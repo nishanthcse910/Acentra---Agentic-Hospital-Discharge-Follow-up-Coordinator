@@ -122,17 +122,33 @@ def doctor_patients(db: Session = Depends(get_db), current_user: models.User = D
 def doctor_reviews(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != 'doctor': raise HTTPException(status_code=403)
     issues = db.query(models.NeedsReviewIssue).filter(models.NeedsReviewIssue.status == 'active').all()
-    return [{
-        "id": i.id,
-        "patientId": i.patient_id,
-        "patientName": i.patient.name if i.patient else "UNKNOWN",
-        "category": i.category,
-        "issue": i.issue,
-        "extractedText": i.extracted_text,
-        "flagReason": i.flag_reason,
-        "source": i.source,
-        "page": i.page
-    } for i in issues]
+    out = []
+    for i in issues:
+        patient_name = "Not provided in document"
+        if i.patient:
+            patient_name = i.patient.name
+        else:
+            # Check if name is in extracted JSON if it was an extraction issue
+            if i.extracted_text and i.extracted_text.startswith('{'):
+                try:
+                    data = json.loads(i.extracted_text)
+                    if data.get('patient_name'):
+                        patient_name = data['patient_name']
+                except:
+                    pass
+
+        out.append({
+            "id": i.id,
+            "patientId": i.patient_id,
+            "patientName": patient_name,
+            "category": i.category,
+            "issue": i.issue,
+            "extractedText": i.extracted_text,
+            "flagReason": i.flag_reason,
+            "source": i.source,
+            "page": i.page
+        })
+    return out
 
 @app.get("/api/doctor/overdue")
 def doctor_overdue(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -321,6 +337,68 @@ def assign_document_patient(document_id: int, req: AssignPatientRequest, db: Ses
         db.commit()
         
         return {"message": "Assigned and processed.", "documentId": doc.id, "needsReview": False, "patientName": pt.name, "extractionId": ext_record.id}
+
+
+@app.post("/api/doctor/reviews/{issue_id}/resolve")
+def resolve_review_issue(issue_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != 'doctor': raise HTTPException(status_code=403)
+    
+    issue = db.query(models.NeedsReviewIssue).filter(models.NeedsReviewIssue.id == issue_id).first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+        
+    issue.status = "resolved"
+    
+    # If the issue belongs to a document, mark the doc as processed if no other active issues exist
+    if issue.document_id:
+        doc = db.query(models.DischargeDocument).filter(models.DischargeDocument.id == issue.document_id).first()
+        if doc:
+            other_active = db.query(models.NeedsReviewIssue).filter(
+                models.NeedsReviewIssue.document_id == doc.id,
+                models.NeedsReviewIssue.status == 'active',
+                models.NeedsReviewIssue.id != issue_id
+            ).count()
+            if other_active == 0:
+                doc.needs_review = False
+                doc.status = "processed"
+                
+                # We can also dynamically generate FollowUp tasks upon resolution if patient exists
+                if doc.patient_id:
+                    ext = db.query(models.DischargeExtraction).filter(models.DischargeExtraction.document_id == doc.id).first()
+                    if ext and ext.structured_data:
+                        import json
+                        data = json.loads(ext.structured_data)
+                        if data.get('follow_ups'):
+                            import datetime
+                            import uuid
+                            for f in data['follow_ups']:
+                                new_id = str(uuid.uuid4())[:8]
+                                task = models.FollowUpTask(
+                                    id=f"TASK_{new_id}",
+                                    patient_id=doc.patient_id,
+                                    title=f"Follow up: {f.get('specialty', 'Care Team')}",
+                                    due_date=f.get('appointment_date', 'Review setup required'),
+                                    status="pending",
+                                    task_type="appointment",
+                                    specialty=f.get('specialty', 'General'),
+                                    attending=None,
+                                    source=doc.original_filename
+                                )
+                                db.add(task)
+                                
+                                tl = models.TimelineEvent(
+                                    id=f"TL_TSK_{new_id}",
+                                    patient_id=doc.patient_id,
+                                    date_str=datetime.datetime.utcnow().strftime("%d %b"),
+                                    title="Task Approved by Clinical Review",
+                                    description=f"Action item confirmed: {task.title}",
+                                    status="completed",
+                                    event_type="communication"
+                                )
+                                db.add(tl)
+                                
+    db.commit()
+    return {"message": "Issue resolved and associated tasks auto-generated."}
 
 # ======================= PATIENT DASHBOARD ENDPOINTS =======================
 

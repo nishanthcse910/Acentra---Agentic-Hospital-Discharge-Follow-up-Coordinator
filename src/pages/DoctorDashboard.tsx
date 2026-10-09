@@ -3,7 +3,7 @@ import { api } from '../api';
 import DocumentUpload from '../components/DocumentUpload';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Users, ClockAlert, AlertTriangle, CheckCircle2, Search, Check, LogOut, ShieldCheck, User, PhoneCall, X, Calendar, ArrowRight, Clock, UserCheck, Menu, UploadCloud, LayoutDashboard, ListTodo, CalendarClock, ClipboardList, History, BellRing, HelpCircle } from 'lucide-react';
+import { Activity, UserPlus, Users, ClockAlert, AlertTriangle, CheckCircle2, Search, Check, LogOut, ShieldCheck, User, PhoneCall, X, Calendar, ArrowRight, Clock, UserCheck, Menu, UploadCloud, LayoutDashboard, ListTodo, CalendarClock, ClipboardList, History, BellRing, HelpCircle } from 'lucide-react';
 import {
   StatusBadge,
   CareCoordinationPriorityBadge,
@@ -42,8 +42,7 @@ export function DoctorDashboard() {
   const [overdueItems, setOverdueItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  useEffect(() => {
-    async function loadData() {
+  const loadData = async () => {
       try {
         const [s, p, r, o] = await Promise.all([
           api.getDoctorStats(),
@@ -60,10 +59,36 @@ export function DoctorDashboard() {
       } finally {
         setLoading(false);
       }
-    }
+    };
+
+  useEffect(() => {
     loadData();
   }, []);
 
+
+
+
+  // Patient Registration UI
+  const [showAddPatient, setShowAddPatient] = useState(false);
+  const [newPatientMrn, setNewPatientMrn] = useState('');
+  const [newPatientName, setNewPatientName] = useState('');
+  const [isAddingPatient, setIsAddingPatient] = useState(false);
+
+  const handleManualAddPatient = async () => {
+    try {
+      setIsAddingPatient(true);
+      await api.registerPatient(newPatientMrn, newPatientName);
+      setToastMessage("Patient registered successfully.");
+      setShowAddPatient(false);
+      setNewPatientMrn('');
+      setNewPatientName('');
+      loadData(); // REFRESH STATE!
+    } catch(e: any) {
+      setToastMessage(e.message || "Failed to register patient.");
+    } finally {
+      setIsAddingPatient(false);
+    }
+  };
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,11 +109,16 @@ export function DoctorDashboard() {
   };
 
   // Interactive handler for "Review Now" or "Approve"
-  const handleResolveReviewItem = (id: string, issue: string) => {
-    setReviewQueue((prev) => prev.filter((item) => item.id !== id));
-    setSelectedReviewItem(null);
-    setToastMessage(`Clinician approved: "${issue}" resolved & updated`);
-    setTimeout(() => setToastMessage(null), 3500);
+  const handleResolveReviewItem = async (id: string, issue: string) => {
+    try {
+      await api.resolveReviewIssue(id);
+      setSelectedReviewItem(null);
+      setToastMessage(`Clinician approved: "${issue}" resolved & updated`);
+      setTimeout(() => setToastMessage(null), 3500);
+      loadData(); // Force live refresh across UI
+    } catch (e: any) {
+      setToastMessage("Failed to resolve review issue natively.");
+    }
   };
 
   const handlePriorityAction = (item: CareCoordinationPriorityItem) => {
@@ -546,6 +576,12 @@ export function DoctorDashboard() {
 
             {/* Search & Filters */}
             <div className="flex flex-wrap items-center gap-2.5">
+              <button 
+                onClick={() => setShowAddPatient(true)}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors"
+              >
+                <UserPlus className="w-4 h-4" /> Add Patient
+              </button>
               {/* Search */}
               <div className="relative w-full sm:w-56">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -740,55 +776,7 @@ export function DoctorDashboard() {
             </div>
           </div>
 
-          {/* SECTION 11: AI REMINDER ACTIVITY PANEL */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs h-full flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <PhoneCall className="w-4 h-4 text-teal-800" /> AI Reminder Simulation
-                </h3>
-                <span className="text-[10px] text-teal-800 bg-teal-50 px-2 py-0.5 rounded font-semibold border border-teal-200">
-                  Informational
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                <div className="flex items-center justify-between font-bold text-slate-900">
-                  <span>{(priorityList[0]?.patientName || 'Loading...')}</span>
-                  <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                    {('Upcoming')}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  <strong>Scheduled:</strong> {('Today, 2:00 PM')}
-                </p>
-                <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                  <strong>Purpose:</strong> {('Post-discharge routine check')}
-                </p>
-
-                {/* Simulation Sequence */}
-                <div className="mt-3 pt-2 border-t border-slate-200 space-y-1 text-[11px] text-slate-600 font-mono">
-                  <div className="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
-                    <span>Attempt 1 — No answer</span>
-                    <span className="text-amber-600 font-bold">Recorded</span>
-                  </div>
-                  <div className="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
-                    <span>Attempt 2 — Scheduled</span>
-                    <span className="text-teal-700 font-bold">In 30m</span>
-                  </div>
-                  <div className="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
-                    <span>SMS fallback — Pending</span>
-                    <span className="text-slate-400">Queued</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 text-[11px] text-slate-500 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>Safety Boundary: Never provides clinical advice.</span>
-            </div>
-          </div>
+          
         </div>
         )}
       
@@ -824,9 +812,38 @@ export function DoctorDashboard() {
 
               <div className="mt-4 p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
                 <div>
-                  <strong className="text-slate-700 block">Extracted Sentence from EHR Document:</strong>
-                  <div className="mt-1 font-mono text-slate-800 bg-white p-2 rounded border border-slate-200">
-                    "{selectedReviewItem.extractedText}"
+                  <strong className="text-slate-700 block">Extracted Data Summary:</strong>
+                  <div className="mt-1 text-slate-800 bg-white p-3 rounded border border-slate-200 max-h-48 overflow-y-auto">
+                    {(() => {
+                        try {
+                            if(selectedReviewItem.extractedText && selectedReviewItem.extractedText.startsWith('{')){
+                                const pt = JSON.parse(selectedReviewItem.extractedText);
+                                return (
+                                    <div className="space-y-2 text-xs font-mono">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div><span className="font-bold text-slate-600">MRN:</span> {pt.patient_mrn || <span className="text-amber-600 italic">Not provided in document</span>}</div>
+                                            <div><span className="font-bold text-slate-600">Patient:</span> {pt.patient_name || <span className="text-amber-600 italic">Requires verification</span>}</div>
+                                            <div><span className="font-bold text-slate-600">Discharge:</span> {pt.discharge_date || <span className="text-amber-600 italic">Requires verification</span>}</div>
+                                        </div>
+                                        {pt.follow_ups && pt.follow_ups.length > 0 && (
+                                            <div className="mt-2 border-t border-slate-100 pt-2">
+                                                <span className="font-bold text-slate-600">Follow-ups:</span>
+                                                <ul className="list-disc pl-4 mt-1">
+                                                    {pt.follow_ups.map((f: any, i: number) => (
+                                                        <li key={i}>{f.specialty} ({f.appointment_date || 'Requires verification'})</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        {(!pt.follow_ups || pt.follow_ups.length === 0) && (
+                                            <div className="mt-2 text-slate-500 italic">No follow-ups extracted.</div>
+                                        )}
+                                    </div>
+                                );
+                            }
+                        } catch(e) {}
+                        return <span className="font-mono text-xs">"{selectedReviewItem.extractedText}"</span>;
+                    })()}
                   </div>
                 </div>
                 <div>
@@ -938,6 +955,52 @@ export function DoctorDashboard() {
         )}
       </AnimatePresence>
     
+
+      {/* Add Patient Modal */}
+      <AnimatePresence>
+        {showAddPatient && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative"
+            >
+              <button
+                onClick={() => setShowAddPatient(false)}
+                className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Register New Patient</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Medical Record Number (MRN)</label>
+                  <input type="text" value={newPatientMrn} onChange={e => setNewPatientMrn(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-teal-500 outline-none" placeholder="MRN-XXXX" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Patient Full Name</label>
+                  <input type="text" value={newPatientName} onChange={e => setNewPatientName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-teal-500 outline-none" placeholder="John Doe" />
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end gap-3">
+                <button onClick={() => setShowAddPatient(false)} className="px-4 py-2 font-medium text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-50">Cancel</button>
+                <button 
+                  onClick={handleManualAddPatient} 
+                  disabled={isAddingPatient || !newPatientMrn || !newPatientName}
+                  className="px-5 py-2 font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-lg disabled:opacity-50"
+                >
+                  {isAddingPatient ? "Registering..." : "Register Patient"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       </div>
     </div>
   );

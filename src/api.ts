@@ -87,6 +87,18 @@ export const api = {
         return response.json();
     },
 
+        resolveReviewIssue: async (issueId: string) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:8000/api/doctor/reviews/${issueId}/resolve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+            }
+        });
+        if (!response.ok) throw new Error("Failed to resolve issue");
+        return response.json();
+    },
     // Patient Ops
     getPatientMe: async () => {
         const res = await fetch('http://localhost:8000/api/patient/me', { headers: getHeaders() });

@@ -69,7 +69,7 @@ def process_document_extraction(db: Session, text: str, document: models.Dischar
             document_id=document.id,
             category="extraction-validation",
             issue="Data extraction anomaly or conflict.",
-            extracted_text=str(raw_json)[:200],
+            extracted_text=json.dumps(raw_json) if raw_json else "{}",
             flag_reason=document.review_reason,
             source=document.original_filename,
             page=1,
