@@ -1,0 +1,329 @@
+activeNav === 'review' || activeNav === 'followup') && (
+          <div className="bg-white rounded-xl border border-amber-300 shadow-xs p-6 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-100 mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                <AlertTriangle className="w-4.5 h-4.5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                  Needs Human Review
+                </h3>
+                <p className="text-xs text-slate-500">
+                  AI does not resolve these clinically — Human care coordinator or doctor reviews them
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-bold bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-200">
+              {reviewQueue.length} Active Items
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {reviewQueue.map((item) => (
+              <div
+                key={item.id}
+                className="p-4 rounded-xl border border-amber-200/90 bg-amber-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900">{item.patientName}</span>
+                    <span className="text-[10px] uppercase font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded border border-amber-300">
+                      {item.category.replace('-', ' ')}
+                    </span>
+                    <span className="text-xs text-slate-400">•</span>
+                    <span className="text-[11px] text-slate-600 font-mono">
+                      Source: {item.source} • Page {item.page}
+                    </span>
+                  </div>
+
+                  <p className="text-xs font-semibold text-slate-900 mt-1">{item.issue}</p>
+                  <p className="text-[11px] text-amber-900 font-medium mt-0.5">
+                    Flag: {item.flagReason}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setSelectedReviewItem(item)}
+                    className="px-3.5 py-2 text-xs font-bold text-white bg-teal-800 hover:bg-teal-900 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    Review
+                  </button>
+                  <button
+                    onClick={() => handleResolveReviewItem(item.id, item.issue)}
+                    className="px-3.5 py-2 text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded-lg border border-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Approve
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        )}
+
+        {/* ========================================================
+            SECTION 7: DOCTOR PATIENT QUEUE TABLE
+            ======================================================== */}
+        {(activeNav === 'dashboard' || activeNav === 'patients') && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 mb-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Users className="w-4 h-4 text-teal-800" /> Discharged Patient Cohort Queue
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Centralized registry with explicit Care Coordination Priority indicators
+              </p>
+            </div>
+
+            {/* Search & Filters */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Search */}
+              <div className="relative w-full sm:w-56">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter patient name..."
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#00e575] focus:ring-1 focus:ring-[#00e575]"
+                />
+              </div>
+
+              {/* Priority Filter */}
+              <select
+                value={priorityFilter}
+                aria-label="Filter by priority"
+                onChange={(e) => setPriorityFilter(e.target.value as any)}
+                className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 cursor-pointer focus:outline-none"
+              >
+                <option value="all">All Priorities</option>
+                <option value="immediate-review">🔴 Immediate Review</option>
+                <option value="high-priority">🟠 High Priority</option>
+                <option value="routine">🟢 Routine</option>
+              </select>
+
+              {/* Status Filter */}
+              <select
+                value={statusFilter}
+                aria-label="Filter by status"
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 cursor-pointer focus:outline-none"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="needs-review">Needs Review</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Patient Queue Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-y border-slate-200">
+                <tr>
+                  <th className="py-3 px-4 font-bold">Patient</th>
+                  <th className="py-3 px-4 font-bold">Follow-up</th>
+                  <th className="py-3 px-4 font-bold">Due Date</th>
+                  <th className="py-3 px-4 font-bold">Priority</th>
+                  <th className="py-3 px-4 font-bold">Status</th>
+                  <th className="py-3 px-4 font-bold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredPriorityList.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 px-4 text-center">
+                      <div className="flex flex-col items-center justify-center text-slate-500">
+                        <UserCheck className="w-8 h-8 text-slate-300 mb-3" />
+                        <p className="text-sm font-medium text-slate-900">No patients found</p>
+                        <p className="text-xs mt-1 text-slate-500">Try adjusting your filters or search query.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredPriorityList.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                      {/* Patient */}
+                      <td className="py-3.5 px-4 align-middle">
+                        <div className="font-bold text-slate-900">{item.patientName}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">ID: {item.patientId}</div>
+                      </td>
+
+                      {/* Follow-up */}
+                      <td className="py-3.5 px-4 align-middle text-slate-700 font-medium">
+                        <div className="font-semibold text-slate-900">{item.followUp}</div>
+                        <div className="text-[10px] text-slate-500 truncate max-w-xs">{item.reason}</div>
+                      </td>
+
+                      {/* Due Date */}
+                      <td className="py-3.5 px-4 align-middle text-slate-600 font-medium whitespace-nowrap">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                          {item.dueDate}
+                        </span>
+                      </td>
+
+                      {/* Priority */}
+                      <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                        <CareCoordinationPriorityBadge level={item.level} size="sm" />
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                        <StatusBadge status={item.status} size="sm" />
+                      </td>
+
+                      {/* Action */}
+                      <td className="py-3.5 px-4 align-middle text-right whitespace-nowrap">
+                        <button
+                          onClick={() => handlePriorityAction(item)}
+                          className={`min-w-[110px] inline-flex items-center justify-center px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer text-center ${
+                            item.level === 'immediate-review'
+                              ? 'bg-red-600 hover:bg-red-700 text-white shadow-xs'
+                              : 'bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200'
+                          }`}
+                        >
+                          {item.actionLabel}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        )}
+
+        {/* ========================================================
+            SECTION 9 & 11: UPCOMING, OVERDUE & AI REMINDER ACTIVITY
+            ======================================================== */}
+        {(activeNav === 'dashboard' || activeNav === 'reminders' || activeNav === 'timeline' || activeNav === 'followup') && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          {/* SECTION 9: OVERDUE FOLLOW-UPS */}
+          <div className="bg-red-50/60 rounded-xl border border-red-200 p-6 shadow-xs h-full flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-red-200 mb-4">
+                <h3 className="text-xs font-extrabold text-red-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <ClockAlert className="w-4 h-4 text-red-600" /> OVERDUE FOLLOW-UPS
+                </h3>
+                <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
+                  Lapsed Deadline
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {overdueItems.map((od) => (
+                  <div key={od.id} className="p-4 bg-white rounded-xl border border-red-200 text-xs shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-red-900 text-sm">{od.patientName}</span>
+                      <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                        {od.daysOverdue} day overdue
+                      </span>
+                    </div>
+                    <div className="mt-1 text-slate-800 font-semibold">{od.taskTitle}</div>
+                    <div className="text-slate-600 mt-0.5">Due: <strong className="text-red-700">{od.dueDate}</strong></div>
+                    <div className="text-[11px] text-slate-500 mt-1">Attending: {od.attending} • {od.contactPhone}</div>
+
+                    <button
+                      onClick={() => {
+                        setToastMessage(`Coordinator task opened for ${od.patientName}`);
+                        setTimeout(() => setToastMessage(null), 3000);
+                      }}
+                      className="mt-3 w-full py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-xs cursor-pointer"
+                    >
+                      Initiate Care Outreach
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-red-200 text-[11px] text-red-800">
+              Immediate coordination required for high-risk patients
+            </div>
+          </div>
+
+          {/* SECTION 9: UPCOMING DEADLINES */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs h-full flex flex-col justify-between">
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4 pb-3 border-b border-slate-100 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-teal-800" /> Upcoming Deadlines
+              </h3>
+
+              <div className="space-y-3">
+                {overdueItems.map((ud) => (
+                  <div key={ud.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900">{ud.patientName}</span>
+                      <span className="text-[11px] text-slate-600 font-mono">{ud.dueDate}</span>
+                    </div>
+                    <div className="text-slate-700 font-medium mt-0.5">{ud.taskTitle}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">Specialty: {ud.specialty}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+              Timeline monitored continuously against hospital protocol
+            </div>
+          </div>
+
+          {/* SECTION 11: AI REMINDER ACTIVITY PANEL */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs h-full flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <PhoneCall className="w-4 h-4 text-teal-800" /> AI Reminder Simulation
+                </h3>
+                <span className="text-[10px] text-teal-800 bg-teal-50 px-2 py-0.5 rounded font-semibold border border-teal-200">
+                  Informational
+                </span>
+              </div>
+
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                <div className="flex items-center justify-between font-bold text-slate-900">
+                  <span>{(priorityList[0]?.patientName || 'Loading...')}</span>
+                  <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    {('Upcoming')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-1">
+                  <strong>Scheduled:</strong> {('Today, 2:00 PM')}
+                </p>
+                <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                  <strong>Purpose:</strong> {('Post-discharge routine check')}
+                </p>
+
+                {/* Simulation Sequence */}
+                <div className="mt-3 pt-2 border-t border-slate-200 space-y-1 text-[11px] text-slate-600 font-mono">
+                  <div className="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
+                    <span>Attempt 1 — No answer</span>
+                    <span className="text-amber-600 font-bold">Recorded</span>
+                  </div>
+                  <div className="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
+                    <span>Attempt 2 — Scheduled</span>
+                    <span className="text-teal-700 font-bold">In 30m</span>
+                  </div>
+                  <div className="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
+                    <span>SMS fallback — Pending</span>
+                    <span className="text-slate-400">Queued</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 text-[11px] text-slate-500 flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>Safety Boundary: Never provides clinical advice.</span>
+            </div>
+          </div>
+        </div>
+        )}
+      
+        {(

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
+import DocumentUpload from '../components/DocumentUpload';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Users, ClockAlert, AlertTriangle, CheckCircle2, Search, Check, LogOut, ShieldCheck, User, PhoneCall, X, Calendar, ArrowRight, Clock, UserCheck, Menu, UploadCloud, LayoutDashboard, ListTodo, CalendarClock, ClipboardList, History, BellRing, HelpCircle } from 'lucide-react';
@@ -73,21 +74,7 @@ export function DoctorDashboard() {
   
   
   const [inspectedPatient, setInspectedPatient] = useState<Patient | null>(null);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadResult, setUploadResult] = useState<any>(null);
-  const [extractedData, setExtractedData] = useState<any>(null);
-  const handleUpload = async () => {
-    if(!uploadFile) return;
-    try {
-      setToastMessage("Uploading document...");
-      const res = await api.uploadDoc(uploadFile);
-      setUploadResult(res); setToastMessage("Document uploaded successfully.");
-      setUploadFile(null);
-    } catch(e) {
-      setToastMessage("Upload failed.");
-    }
-  };
-
+    
   const [selectedReviewItem, setSelectedReviewItem] = useState<NeedsReviewItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -129,15 +116,6 @@ export function DoctorDashboard() {
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     return matchesSearch && matchesPriority && matchesStatus;
   });
-
-  
-  useEffect(() => {
-    if (uploadResult && !uploadResult.needsReview && uploadResult.documentId) {
-      api.getExtraction(uploadResult.documentId).then(data => setExtractedData(data)).catch(e => console.error(e));
-    } else {
-      setExtractedData(null);
-    }
-  }, [uploadResult]);
 
   return (
         <div className="flex bg-[#f8fafc] text-slate-900 min-h-screen">
@@ -814,100 +792,7 @@ export function DoctorDashboard() {
         </div>
         )}
       
-        {(activeNav === 'upload') && (
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs max-w-3xl mx-auto mt-8">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-              <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center border border-teal-200">
-                <UploadCloud className="w-5 h-5 text-teal-800" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Upload Clinical Document</h2>
-                <p className="text-xs text-slate-500">Securely ingest Discharge Summaries for AI Extraction</p>
-              </div>
-            </div>
-            
-            <label className="border-2 border-dashed border-slate-300 rounded-xl p-10 flex flex-col items-center justify-center text-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group">
-              <input type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => {
-                 if(e.target.files && e.target.files[0]) setUploadFile(e.target.files[0]);
-              }} />
-              <div className="w-16 h-16 rounded-full bg-white border border-slate-200 flex items-center justify-center mb-4 group-hover:shadow-md transition-shadow">
-                <FileText className="w-8 h-8 text-slate-400 group-hover:text-teal-600 transition-colors" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900 mb-1">{uploadFile ? uploadFile.name : "Click to select or drag and drop"}</h3>
-              <p className="text-xs text-slate-500 mb-4">Supported formats: PDF, DOCX, XLS, XLSX</p>
-              <div className="px-5 py-2.5 bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold rounded-lg shadow-xs transition-colors">
-                {uploadFile ? "Change File" : "Select File"}
-              </div>
-            </label>
-            {uploadFile && (
-              <button onClick={handleUpload} className="mt-4 w-full py-3 bg-[#00e575] hover:bg-[#00cb68] text-[#052429] font-bold rounded-xl shadow-md transition-colors">
-                Confirm & Upload Document
-              </button>
-            )}
-            
-            {uploadResult && (
-              <div className="mt-6 bg-red-50/80 border border-red-300 rounded-xl p-4 flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-red-900 font-bold text-sm">
-                  <AlertTriangle className="w-5 h-5 text-red-600" /> ⚠ Needs Manual Correction
-                </div>
-                <div className="text-xs text-red-800 font-medium pl-2">
-                  <strong className="block mb-1">Reason:</strong>
-                  "Patient identifier could not be confidently matched."
-                </div>
-                <div className="text-[11px] text-slate-500 mt-2 pl-2">Document ID: {uploadResult.documentId}</div>
-              </div>
-            )}
-
-            {extractedData && (
-              <div className="mt-6 border border-teal-200 rounded-xl overflow-hidden bg-white">
-                <div className="bg-teal-50 px-4 py-3 font-semibold text-teal-900 border-b border-teal-200">
-                  Document Intelligence Extraction
-                </div>
-                <div className="p-4 space-y-4 text-sm text-slate-700">
-                  <div className="flex gap-4">
-                    <div className="flex-1"><strong className="text-slate-900">MRN:</strong> {extractedData.patient_mrn}</div>
-                    <div className="flex-1"><strong className="text-slate-900">Discharge:</strong> {extractedData.discharge_date}</div>
-                  </div>
-                  {extractedData.follow_ups && extractedData.follow_ups.length > 0 && (
-                    <div>
-                      <strong className="text-slate-900 block mb-1">Follow-ups:</strong>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {extractedData.follow_ups.map((f:any, i:number) => (
-                          <li key={'f'+i}>{f.specialty} ({f.appointment_date}): {f.instruction}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {extractedData.medication_instructions && extractedData.medication_instructions.length > 0 && (
-                    <div>
-                      <strong className="text-slate-900 block mb-1">Medications:</strong>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {extractedData.medication_instructions.map((m:any, i:number) => (
-                          <li key={'m'+i}>{m.medication_name} - {m.instruction}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {extractedData.source_evidence && extractedData.source_evidence.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-slate-100">
-                      <strong className="text-slate-500 block mb-1 text-xs uppercase tracking-wider">Source Evidence snippet:</strong>
-                      <div className="bg-slate-50 p-2 rounded text-xs italic text-slate-600 border border-slate-200">
-                        "{extractedData.source_evidence[0]?.extracted_text}"
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            
-
-            <div className="mt-4 flex items-center gap-2 text-[11px] text-slate-600 bg-slate-100 p-3 rounded-lg border border-slate-200">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <p>This is a frontend demonstration interface. Uploaded documents will not be sent to any backend AI processing engine during Phase 1.</p>
-            </div>
-          </div>
-        )}
+        {(activeNav === 'upload') && <DocumentUpload />}
 
         </main>
 {/* Review Modal (for resolving Needs Human Review queue items) */}

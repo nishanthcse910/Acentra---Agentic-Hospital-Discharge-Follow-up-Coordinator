@@ -1,0 +1,5 @@
+
+     Back to CareFlow AICareFlow AISign In to Healthcare PortalAgentic Hospital Discharge &amp; Follow-up CoordinatorSelect Demo RolePATIENTDOCTOR / CARE COORD.Preset Demo Credentials:Autofilledusername: patient | password: patient123UsernamePasswordSign In as Patient (Arun Kumar)Demo environment — synthetic healthcare data only.Frontend-only session authentication • No backend required
+    
+  
+

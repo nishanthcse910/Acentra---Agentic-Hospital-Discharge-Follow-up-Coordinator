@@ -1,0 +1,8 @@
+uploadDoc: async (file: File) => {
+        const token = localStorage.getItem('token');
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('http://localhost:8000/api/doctor/upload', {
+            method: 'POST',
+            headers: {
+    
