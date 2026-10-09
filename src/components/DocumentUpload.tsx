@@ -35,8 +35,8 @@ export default function DocumentUpload() {
             setUploadResult(res);
             setToastMessage("Document uploaded successfully.");
             setUploadFile(null);
-        } catch (e) {
-            setToastMessage("Uploading failed.");
+        } catch (e: any) {
+            setToastMessage(e.message || "Uploading failed.");
         } finally {
             setIsUploading(false);
         }

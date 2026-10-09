@@ -7,13 +7,17 @@ const getHeaders = () => {
 };
 
 export const api = {
-  getExtraction: async (docId: number) => {
-    const response = await fetch("http://localhost:8000/api/doctor/extraction/" + docId, {
-      headers: { ...getHeaders() }
-    });
-    if (!response.ok) throw new Error("Failed");
-    return response.json();
-  },
+    getExtraction: async (docId: number) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch("http://localhost:8000/api/doctor/extraction/" + docId, {
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
+        });
+        if (!response.ok) throw new Error("Failed extraction");
+        return response.json();
+    },
     // Doctor Ops
     getDoctorStats: async () => {
         const res = await fetch('http://localhost:8000/api/doctor/stats', { headers: getHeaders() });
@@ -42,8 +46,11 @@ export const api = {
             },
             body: formData
         });
-        if (!res.ok) throw new Error('Upload failed');
-        return res.json();
+        if (!response.ok) {
+            const errBody = await response.text();
+            throw new Error(`Upload API failed: ${response.status} - ${errBody}`);
+        }
+        return response.json();
     },
 
     // Patient Ops
