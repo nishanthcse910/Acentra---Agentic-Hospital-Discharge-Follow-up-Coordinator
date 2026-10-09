@@ -210,7 +210,7 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
         )
         db.add(issue)
         db.commit()
-        return {"message": "Document uploaded and flagged for review.", "documentId": document.id, "needsReview": True, "reason": review_reason, "patientName": None}
+        return {"message": "Document uploaded and flagged for review.", "documentId": document.id, "needsReview": True, "reason": review_reason, "patientName": None, "extractedMrns": mrns}
     else:
         tl = models.TimelineEvent(
             id=f"TL_DOC_{document.id}",
@@ -234,6 +234,93 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
              
         return {"message": "success", "documentId": document.id, "needsReview": False, "patientName": matched_patient.name, "extractionId": ext_record.id}
 
+
+
+class PatientRegisterRequest(BaseModel):
+    id: str
+    name: str
+
+@app.post("/api/doctor/patients/register")
+def register_patient(req: PatientRegisterRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != 'doctor': raise HTTPException(status_code=403)
+    
+    # Validation logic per requirements
+    if not req.id or not req.id.startswith('MRN') or len(req.id) < 6:
+        raise HTTPException(status_code=400, detail="Invalid MRN format.")
+        
+    existing = db.query(models.Patient).filter(models.Patient.id == req.id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Patient with this MRN already exists.")
+        
+    new_patient = models.Patient(
+        id=req.id,
+        name=req.name,
+        dob="01 Jan 1970",
+        gender="Unknown",
+        priority_level="routine"
+    )
+    db.add(new_patient)
+    db.commit()
+    
+    return {"message": "Patient registered successfully", "patient": {"id": new_patient.id, "name": new_patient.name}}
+
+class AssignPatientRequest(BaseModel):
+    patient_id: str
+
+@app.post("/api/doctor/documents/{document_id}/assign-patient")
+def assign_document_patient(document_id: int, req: AssignPatientRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != 'doctor': raise HTTPException(status_code=403)
+    
+    doc = db.query(models.DischargeDocument).filter(models.DischargeDocument.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    if doc.patient_id:
+        raise HTTPException(status_code=400, detail="Document is already assigned to a patient.")
+        
+    pt = db.query(models.Patient).filter(models.Patient.id == req.patient_id).first()
+    if not pt:
+        raise HTTPException(status_code=404, detail="Patient not found.")
+        
+    doc.patient_id = pt.id
+    
+    issue = db.query(models.NeedsReviewIssue).filter(models.NeedsReviewIssue.document_id == doc.id, models.NeedsReviewIssue.category == 'patient-matching').first()
+    if issue:
+        issue.status = "resolved"
+        
+    db.commit()
+    
+    # Resume processing
+    import document_parser
+    import extraction_service
+    text_content = document_parser.extract_text(doc.file_path, doc.file_path.split('.')[-1])
+    ext_record, ext_reasons = extraction_service.process_document_extraction(db, text_content, doc, pt)
+    
+    if ext_reasons:
+        doc.needs_review = True
+        doc.review_reason = ext_reasons
+        doc.status = "needs-manual-review"
+        db.commit()
+        return {"message": "Assigned, but flagged during extraction.", "documentId": doc.id, "needsReview": True, "reason": ext_reasons, "patientName": pt.name}
+    else:
+        doc.needs_review = False
+        doc.review_reason = None
+        doc.status = "processed"
+        
+        # Add timeline event for resume processing success
+        tl = models.TimelineEvent(
+            id=f"TL_DOC_RESUME_{doc.id}",
+            patient_id=pt.id,
+            date_str="Today",
+            title="Discharge Document Re-processed",
+            description=f"Document successfully mapped to newly linked patient.",
+            status="completed",
+            event_type="communication"
+        )
+        db.add(tl)
+        db.commit()
+        
+        return {"message": "Assigned and processed.", "documentId": doc.id, "needsReview": False, "patientName": pt.name, "extractionId": ext_record.id}
 
 # ======================= PATIENT DASHBOARD ENDPOINTS =======================
 

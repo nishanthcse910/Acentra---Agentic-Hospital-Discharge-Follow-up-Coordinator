@@ -44,5 +44,5 @@ def extract_text(file_path: str, ext: str) -> str:
     return text
 
 def find_patient_mrns(text: str):
-    matches = re.findall(r'MRN-[0-9A-Za-z]+', text, re.IGNORECASE)
+    matches = re.findall(r'MRN-[0-9A-Za-z-]+', text, re.IGNORECASE)
     return list(set([m.upper() for m in matches]))

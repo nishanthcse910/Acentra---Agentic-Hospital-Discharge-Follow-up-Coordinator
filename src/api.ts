@@ -53,6 +53,40 @@ export const api = {
         return response.json();
     },
 
+    
+    registerPatient: async (id: string, name: string) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch("http://localhost:8000/api/doctor/patients/register", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+            },
+            body: JSON.stringify({ id, name })
+        });
+        if (!response.ok) {
+             const errorText = await response.text();
+             throw new Error(errorText);
+        }
+        return response.json();
+    },
+    assignPatientToDocument: async (documentId: number, patientId: string) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:8000/api/doctor/documents/${documentId}/assign-patient`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+            },
+            body: JSON.stringify({ patient_id: patientId })
+        });
+        if (!response.ok) {
+             const errorText = await response.text();
+             throw new Error(errorText);
+        }
+        return response.json();
+    },
+
     // Patient Ops
     getPatientMe: async () => {
         const res = await fetch('http://localhost:8000/api/patient/me', { headers: getHeaders() });
